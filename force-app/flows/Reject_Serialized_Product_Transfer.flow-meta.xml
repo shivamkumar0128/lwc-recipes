@@ -1,0 +1,680 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <description>Destination engineer rejects a serialized product transfer in Sent status. Resets all serialized product statuses to Available (auto-creates SPT records of type Received), stamps rejection metadata on the original PT, and creates a reversal ProductTransfer with source and destination swapped plus new ProductTransferState records for the same serialized products.</description>
+    <interviewLabel>Reject Serialized Product Transfer {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Reject Serialized Product Transfer</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>Flow</processType>
+    <status>Active</status>
+
+    <!-- ═══════════════════════════════════════
+         VARIABLES
+         ═══════════════════════════════════════ -->
+
+    <!-- Input: record Id passed from Quick Action -->
+    <variables>
+        <name>recordId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <!-- Holds the fetched original PT record -->
+    <variables>
+        <name>varOrigPT</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>ProductTransfer</objectType>
+    </variables>
+
+    <!-- Holds all ProductTransferState records (SP junction) for this PT -->
+    <variables>
+        <name>varPTStates</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>ProductTransferState</objectType>
+    </variables>
+
+    <!-- Stores the Id of the newly created reversal PT -->
+    <variables>
+        <name>varReversalPTId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <!-- Captured from screen -->
+    <variables>
+        <name>varRejectionReason</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <variables>
+        <name>varRejectionNotes</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <!-- Staging collection for bulk SP status updates -->
+    <variables>
+        <name>varSPUpdates</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>SerializedProduct</objectType>
+    </variables>
+
+    <!-- Loop variable: single ProductTransferState row -->
+    <variables>
+        <name>varCurrentState</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>ProductTransferState</objectType>
+    </variables>
+
+    <!-- Single SP to reset, built inside loop 1 -->
+    <variables>
+        <name>varSPToReset</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>SerializedProduct</objectType>
+    </variables>
+
+    <!-- Staging collection for bulk reversal PTState creation -->
+    <variables>
+        <name>varReversalStates</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>ProductTransferState</objectType>
+    </variables>
+
+    <!-- Single reversal state, built inside loop 2 -->
+    <variables>
+        <name>varReversalState</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>ProductTransferState</objectType>
+    </variables>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 1: GET ORIGINAL PRODUCT TRANSFER
+         ═══════════════════════════════════════ -->
+    <recordLookups>
+        <name>Get_Original_PT</name>
+        <label>Get Original PT</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_PT_States</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>recordId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>ProductTransfer</object>
+        <outputReference>varOrigPT</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Status</queriedFields>
+        <queriedFields>SourceLocationId</queriedFields>
+        <queriedFields>DestinationLocationId</queriedFields>
+        <queriedFields>QuantitySent</queriedFields>
+        <queriedFields>QuantityReceived</queriedFields>
+        <queriedFields>ProductTransferNumber</queriedFields>
+        <queriedFields>Is_Reversal__c</queriedFields>
+    </recordLookups>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 2: GET PRODUCTTRANSFERSTATE RECORDS
+         ═══════════════════════════════════════ -->
+    <recordLookups>
+        <name>Get_PT_States</name>
+        <label>Get PT States (Serialized Products)</label>
+        <locationX>176</locationX>
+        <locationY>254</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Screen_Confirm_Rejection</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>ProductTransferId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>recordId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>ProductTransferState</object>
+        <outputReference>varPTStates</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>SerializedProductId</queriedFields>
+        <queriedFields>ProductTransferId</queriedFields>
+    </recordLookups>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 3: SCREEN — CONFIRM REJECTION
+         ═══════════════════════════════════════ -->
+    <screens>
+        <name>Screen_Confirm_Rejection</name>
+        <label>Confirm Rejection</label>
+        <locationX>176</locationX>
+        <locationY>374</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Decision_Is_PT_Rejectable</targetReference>
+        </connector>
+        <fields>
+            <name>DisplayText_PTDetails</name>
+            <fieldText>&lt;p&gt;&lt;b&gt;Transfer:&lt;/b&gt; {!varOrigPT.ProductTransferNumber}&lt;/p&gt;
+&lt;p&gt;You are about to &lt;b&gt;reject&lt;/b&gt; this serialized product transfer.&lt;/p&gt;
+&lt;p&gt;This will reset all serialized products to &lt;b&gt;Available&lt;/b&gt; status and create a return transfer with source and destination swapped.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>Picklist_RejectionReason</name>
+            <choiceReferences>Choice_DamagedOnArrival</choiceReferences>
+            <choiceReferences>Choice_WrongItem</choiceReferences>
+            <choiceReferences>Choice_ExcessQuantity</choiceReferences>
+            <choiceReferences>Choice_QualityIssue</choiceReferences>
+            <choiceReferences>Choice_Other</choiceReferences>
+            <dataType>String</dataType>
+            <fieldText>Rejection Reason</fieldText>
+            <fieldType>DropdownBox</fieldType>
+            <isRequired>true</isRequired>
+            <outputPathPrefix>varRejectionReason</outputPathPrefix>
+            <storeOutputAutomatically>true</storeOutputAutomatically>
+        </fields>
+        <fields>
+            <name>TextArea_RejectionNotes</name>
+            <dataType>String</dataType>
+            <fieldText>Additional Notes</fieldText>
+            <fieldType>LargeTextArea</fieldType>
+            <isRequired>false</isRequired>
+            <outputPathPrefix>varRejectionNotes</outputPathPrefix>
+            <storeOutputAutomatically>true</storeOutputAutomatically>
+        </fields>
+        <nextOrFinishButtonLabel>Confirm Rejection</nextOrFinishButtonLabel>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <!-- ═══════════════════════════════════════
+         PICKLIST CHOICES FOR SCREEN
+         ═══════════════════════════════════════ -->
+    <choices>
+        <name>Choice_DamagedOnArrival</name>
+        <choiceText>Damaged on Arrival</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Damaged on Arrival</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Choice_WrongItem</name>
+        <choiceText>Wrong Item</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Wrong Item</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Choice_ExcessQuantity</name>
+        <choiceText>Excess Quantity</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Excess Quantity</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Choice_QualityIssue</name>
+        <choiceText>Quality Issue</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Quality Issue</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Choice_Other</name>
+        <choiceText>Other</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Other</stringValue>
+        </value>
+    </choices>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 4: DECISION — IS PT REJECTABLE?
+         Checks Status = Sent AND Is_Reversal__c = false
+         ═══════════════════════════════════════ -->
+    <decisions>
+        <name>Decision_Is_PT_Rejectable</name>
+        <label>Is PT Rejectable?</label>
+        <locationX>176</locationX>
+        <locationY>494</locationY>
+        <defaultConnector>
+            <targetReference>Screen_Error_Not_Rejectable</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Not Valid</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_Yes_Rejectable</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>varOrigPT.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <!-- NOTE: Replace 'Sent' with the exact picklist API value
+                         used in YOUR org for the Sent status on ProductTransfer.
+                         Check Setup > Object Manager > ProductTransfer > Status field. -->
+                    <stringValue>Sent</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>varOrigPT.Is_Reversal__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Decision_SP_States_Exist</targetReference>
+            </connector>
+            <label>Yes — PT is Sent and not a Reversal</label>
+        </rules>
+    </decisions>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 5: SCREEN — ERROR NOT REJECTABLE
+         ═══════════════════════════════════════ -->
+    <screens>
+        <name>Screen_Error_Not_Rejectable</name>
+        <label>Error — Cannot Reject</label>
+        <locationX>440</locationX>
+        <locationY>614</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>DisplayText_ErrorNotRejectable</name>
+            <fieldText>&lt;p&gt;&lt;b&gt;This transfer cannot be rejected.&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;Only product transfers with a status of &lt;b&gt;Sent&lt;/b&gt; that are not already a reversal transfer can be rejected.&lt;/p&gt;
+&lt;p&gt;Current status: {!varOrigPT.Status}&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <nextOrFinishButtonLabel>Close</nextOrFinishButtonLabel>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 6: DECISION — DO PT STATES EXIST?
+         ═══════════════════════════════════════ -->
+    <decisions>
+        <name>Decision_SP_States_Exist</name>
+        <label>Serialized Products Found?</label>
+        <locationX>176</locationX>
+        <locationY>614</locationY>
+        <defaultConnector>
+            <targetReference>Screen_Error_No_SP</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Serialized Products</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_SP_Found</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>varPTStates</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Loop_Build_SP_Resets</targetReference>
+            </connector>
+            <label>Yes — SPs exist</label>
+        </rules>
+    </decisions>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 7: SCREEN — ERROR NO SPs
+         ═══════════════════════════════════════ -->
+    <screens>
+        <name>Screen_Error_No_SP</name>
+        <label>Error — No Serialized Products</label>
+        <locationX>440</locationX>
+        <locationY>734</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>DisplayText_ErrorNoSP</name>
+            <fieldText>&lt;p&gt;&lt;b&gt;No serialized products found on this transfer.&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;This transfer has no associated serialized products and cannot be rejected through this flow. Please contact your administrator.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <nextOrFinishButtonLabel>Close</nextOrFinishButtonLabel>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 8: LOOP 1 — BUILD SP STATUS RESET COLLECTION
+         Iterates varPTStates, builds varSPUpdates list
+         ═══════════════════════════════════════ -->
+    <loops>
+        <name>Loop_Build_SP_Resets</name>
+        <label>Loop — Build SP Reset Collection</label>
+        <locationX>176</locationX>
+        <locationY>734</locationY>
+        <collectionReference>varPTStates</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Assignment_Build_SP_Reset</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_Bulk_SP_Status</targetReference>
+        </noMoreValuesConnector>
+        <outputReference>varCurrentState</outputReference>
+    </loops>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 9: ASSIGNMENT — BUILD SP RESET RECORD
+         Sets SP.Id + Status = Available, adds to collection
+         ═══════════════════════════════════════ -->
+    <assignments>
+        <name>Assignment_Build_SP_Reset</name>
+        <label>Build SP Reset Record</label>
+        <locationX>308</locationX>
+        <locationY>854</locationY>
+        <assignmentItems>
+            <assignToReference>varSPToReset.Id</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>varCurrentState.SerializedProductId</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <!-- Setting Status to Available triggers auto-creation of
+                 a SerializedProductTransaction of type 'Received'.
+                 Do NOT manually create SPT records. -->
+            <assignToReference>varSPToReset.Status</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Available</stringValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>varSPUpdates</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>varSPToReset</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Build_SP_Resets</targetReference>
+        </connector>
+    </assignments>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 10: UPDATE — BULK RESET ALL SP STATUSES
+         One DML call for all SPs. Salesforce auto-creates
+         SerializedProductTransaction (type: Received) per SP.
+         ═══════════════════════════════════════ -->
+    <recordUpdates>
+        <name>Update_Bulk_SP_Status</name>
+        <label>Bulk Update SP Status to Available</label>
+        <locationX>176</locationX>
+        <locationY>974</locationY>
+        <connector>
+            <targetReference>Update_Original_PT</targetReference>
+        </connector>
+        <inputReference>varSPUpdates</inputReference>
+    </recordUpdates>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 11: UPDATE — STAMP ORIGINAL PT WITH REJECTION DATA
+         ═══════════════════════════════════════ -->
+    <recordUpdates>
+        <name>Update_Original_PT</name>
+        <label>Update Original PT — Mark Rejected</label>
+        <locationX>176</locationX>
+        <locationY>1094</locationY>
+        <connector>
+            <targetReference>Create_Reversal_PT</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>recordId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Rejection_Reason__c</field>
+            <value>
+                <elementReference>varRejectionReason</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Rejection_Notes__c</field>
+            <value>
+                <elementReference>varRejectionNotes</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Rejected_By__c</field>
+            <value>
+                <elementReference>$User.Id</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Rejected_Date__c</field>
+            <value>
+                <elementReference>$Flow.CurrentDateTime</elementReference>
+            </value>
+        </inputAssignments>
+        <object>ProductTransfer</object>
+    </recordUpdates>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 12: CREATE — REVERSAL PRODUCT TRANSFER
+         Source ↔ Destination swapped from original
+         ═══════════════════════════════════════ -->
+    <recordCreates>
+        <name>Create_Reversal_PT</name>
+        <label>Create Reversal Product Transfer</label>
+        <locationX>176</locationX>
+        <locationY>1214</locationY>
+        <assignRecordIdToReference>varReversalPTId</assignRecordIdToReference>
+        <connector>
+            <targetReference>Loop_Build_Reversal_States</targetReference>
+        </connector>
+        <inputAssignments>
+            <!-- SWAP: original Destination becomes new Source -->
+            <field>SourceLocationId</field>
+            <value>
+                <elementReference>varOrigPT.DestinationLocationId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <!-- SWAP: original Source becomes new Destination -->
+            <field>DestinationLocationId</field>
+            <value>
+                <elementReference>varOrigPT.SourceLocationId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>QuantitySent</field>
+            <value>
+                <elementReference>varOrigPT.QuantitySent</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Is_Reversal__c</field>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Reversal_Of__c</field>
+            <value>
+                <elementReference>recordId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Rejection_Reason__c</field>
+            <value>
+                <elementReference>varRejectionReason</elementReference>
+            </value>
+        </inputAssignments>
+        <object>ProductTransfer</object>
+    </recordCreates>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 13: LOOP 2 — BUILD REVERSAL PT STATES
+         Creates new ProductTransferState records linking
+         the same SPs to the reversal PT
+         ═══════════════════════════════════════ -->
+    <loops>
+        <name>Loop_Build_Reversal_States</name>
+        <label>Loop — Build Reversal PT States</label>
+        <locationX>176</locationX>
+        <locationY>1334</locationY>
+        <collectionReference>varPTStates</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Assignment_Build_Reversal_State</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Create_Bulk_Reversal_States</targetReference>
+        </noMoreValuesConnector>
+        <outputReference>varCurrentState</outputReference>
+    </loops>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 14: ASSIGNMENT — BUILD REVERSAL STATE RECORD
+         ═══════════════════════════════════════ -->
+    <assignments>
+        <name>Assignment_Build_Reversal_State</name>
+        <label>Build Reversal PT State Record</label>
+        <locationX>308</locationX>
+        <locationY>1454</locationY>
+        <assignmentItems>
+            <assignToReference>varReversalState.ProductTransferId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>varReversalPTId</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <!-- Same Serialized Product as on the original transfer -->
+            <assignToReference>varReversalState.SerializedProductId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>varCurrentState.SerializedProductId</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>varReversalStates</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>varReversalState</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Build_Reversal_States</targetReference>
+        </connector>
+    </assignments>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 15: CREATE — BULK CREATE REVERSAL PT STATES
+         One DML call creates all junction records
+         ═══════════════════════════════════════ -->
+    <recordCreates>
+        <name>Create_Bulk_Reversal_States</name>
+        <label>Create Reversal PT States (Bulk)</label>
+        <locationX>176</locationX>
+        <locationY>1574</locationY>
+        <connector>
+            <targetReference>Screen_Success</targetReference>
+        </connector>
+        <inputReference>varReversalStates</inputReference>
+    </recordCreates>
+
+    <!-- ═══════════════════════════════════════
+         ELEMENT 16: SCREEN — SUCCESS
+         ═══════════════════════════════════════ -->
+    <screens>
+        <name>Screen_Success</name>
+        <label>Rejection Confirmed</label>
+        <locationX>176</locationX>
+        <locationY>1694</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>DisplayText_Success</name>
+            <fieldText>&lt;p&gt;&lt;b&gt;Transfer rejected successfully.&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;All serialized products have been reset to &lt;b&gt;Available&lt;/b&gt; status. Serialized Product Transaction records (type: Received) have been automatically created by Salesforce for each product.&lt;/p&gt;
+&lt;p&gt;A reversal product transfer has been created with ID: &lt;b&gt;{!varReversalPTId}&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;The source-side engineer should now send and the destination engineer receive the reversal transfer to complete the stock return.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <nextOrFinishButtonLabel>Done</nextOrFinishButtonLabel>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <!-- ═══════════════════════════════════════
+         START ELEMENT
+         ═══════════════════════════════════════ -->
+    <start>
+        <locationX>50</locationX>
+        <locationY>134</locationY>
+        <connector>
+            <targetReference>Get_Original_PT</targetReference>
+        </connector>
+    </start>
+
+    <runInMode>DefaultMode</runInMode>
+</Flow>

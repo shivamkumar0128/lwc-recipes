@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Reversal_Of__c</fullName>
+    <label>Reversal Of</label>
+    <type>Lookup</type>
+    <referenceTo>ProductTransfer</referenceTo>
+    <relationshipLabel>Reversal Transfers</relationshipLabel>
+    <relationshipName>Reversal_Transfers</relationshipName>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+</CustomField>

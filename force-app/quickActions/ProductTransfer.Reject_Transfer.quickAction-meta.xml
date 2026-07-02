@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionSubtype>ScreenAction</actionSubtype>
+    <description>Reject this serialized product transfer and create a reversal transfer.</description>
+    <flow>Reject_Serialized_Product_Transfer</flow>
+    <label>Reject Transfer</label>
+    <lightningComponent></lightningComponent>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <targetObject>ProductTransfer</targetObject>
+    <type>Flow</type>
+</QuickAction>

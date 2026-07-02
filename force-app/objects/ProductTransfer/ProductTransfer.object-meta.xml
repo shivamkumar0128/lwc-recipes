@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fields>
+        <fullName>Rejection_Reason__c</fullName>
+        <label>Rejection Reason</label>
+        <type>Picklist</type>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value>
+                    <fullName>Damaged on Arrival</fullName>
+                    <default>false</default>
+                    <label>Damaged on Arrival</label>
+                </value>
+                <value>
+                    <fullName>Wrong Item</fullName>
+                    <default>false</default>
+                    <label>Wrong Item</label>
+                </value>
+                <value>
+                    <fullName>Excess Quantity</fullName>
+                    <default>false</default>
+                    <label>Excess Quantity</label>
+                </value>
+                <value>
+                    <fullName>Quality Issue</fullName>
+                    <default>false</default>
+                    <label>Quality Issue</label>
+                </value>
+                <value>
+                    <fullName>Other</fullName>
+                    <default>false</default>
+                    <label>Other</label>
+                </value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Rejection_Notes__c</fullName>
+        <label>Rejection Notes</label>
+        <type>LongTextArea</type>
+        <length>500</length>
+        <visibleLines>4</visibleLines>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+    </fields>
+    <fields>
+        <fullName>Rejected_By__c</fullName>
+        <label>Rejected By</label>
+        <type>Lookup</type>
+        <referenceTo>User</referenceTo>
+        <relationshipLabel>Rejected Product Transfers</relationshipLabel>
+        <relationshipName>Rejected_Product_Transfers</relationshipName>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+    </fields>
+    <fields>
+        <fullName>Rejected_Date__c</fullName>
+        <label>Rejected Date</label>
+        <type>DateTime</type>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+    </fields>
+    <fields>
+        <fullName>Is_Reversal__c</fullName>
+        <label>Is Reversal</label>
+        <type>Checkbox</type>
+        <defaultValue>false</defaultValue>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+    </fields>
+    <fields>
+        <fullName>Reversal_Of__c</fullName>
+        <label>Reversal Of</label>
+        <type>Lookup</type>
+        <referenceTo>ProductTransfer</referenceTo>
+        <relationshipLabel>Reversal Transfers</relationshipLabel>
+        <relationshipName>Reversal_Transfers</relationshipName>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <trackTrending>false</trackTrending>
+    </fields>
+</CustomObject>

@@ -3,19 +3,70 @@
     <apiVersion>67.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <assignments>
-        <name>Add_Plan_ID_to_Text_Collection</name>
-        <label>Add Plan ID to Text Collection</label>
+        <name>Add_to_Collection</name>
+        <label>Add to Collection</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <assignmentItems>
-            <assignToReference>coll_WorkPlanIds</assignToReference>
+            <assignToReference>coll_WorkStepsToCreate</assignToReference>
             <operator>Add</operator>
             <value>
-                <elementReference>Loop_Through_Work_Plans.Id</elementReference>
+                <elementReference>var_SingleWorkStep</elementReference>
             </value>
         </assignmentItems>
         <connector>
             <targetReference>Loop_Through_Work_Plans</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Assign_Work_Step_Values</name>
+        <label>Assign Work Step Values</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.WorkPlanId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Through_Work_Plans.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.WorkOrderId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Through_Work_Plans.WorkOrderId</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.Name</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Record.WorkStepTemplate.Name</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.Description</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Record.WorkStepTemplate.Description</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.ExecutionOrder</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Record.ExecutionOrder</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>var_SingleWorkStep.Status</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>New</stringValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Add_to_Collection</targetReference>
         </connector>
     </assignments>
     <decisions>
@@ -59,31 +110,9 @@
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Add_Plan_ID_to_Text_Collection</targetReference>
+                <targetReference>Assign_Work_Step_Values</targetReference>
             </connector>
             <label>Yes Open</label>
-        </rules>
-    </decisions>
-    <decisions>
-        <name>Were_Steps_Found</name>
-        <label>Were Steps Found</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <defaultConnectorLabel>No</defaultConnectorLabel>
-        <rules>
-            <name>Yes_Steps_Exist</name>
-            <conditionLogic>and</conditionLogic>
-            <conditions>
-                <leftValueReference>Get_Matching_Work_Steps</leftValueReference>
-                <operator>IsNull</operator>
-                <rightValue>
-                    <booleanValue>false</booleanValue>
-                </rightValue>
-            </conditions>
-            <connector>
-                <targetReference>Delete_Work_Steps</targetReference>
-            </connector>
-            <label>Yes Steps Exist</label>
         </rules>
     </decisions>
     <decisions>
@@ -109,8 +138,8 @@
         </rules>
     </decisions>
     <environments>Default</environments>
-    <interviewLabel>workplan delete {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>Work Plan Template Entry - Delete Sync</label>
+    <interviewLabel>workplan {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>workplan</label>
     <loops>
         <name>Loop_Through_Work_Plans</name>
         <label>Loop Through Work Plans</label>
@@ -122,7 +151,7 @@
             <targetReference>Is_Work_Order_Open</targetReference>
         </nextValueConnector>
         <noMoreValuesConnector>
-            <targetReference>Get_Matching_Work_Steps</targetReference>
+            <targetReference>Create_New_Work_Steps</targetReference>
         </noMoreValuesConnector>
     </loops>
     <processMetadataValues>
@@ -144,13 +173,13 @@
         </value>
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
-    <recordDeletes>
-        <name>Delete_Work_Steps</name>
-        <label>Delete Work Steps</label>
+    <recordCreates>
+        <name>Create_New_Work_Steps</name>
+        <label>Create New Work Steps</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
-        <inputReference>Get_Matching_Work_Steps</inputReference>
-    </recordDeletes>
+        <inputReference>coll_WorkStepsToCreate</inputReference>
+    </recordCreates>
     <recordLookups>
         <name>Get_Active_Work_Plans</name>
         <label>Get Active Work Plans</label>
@@ -179,41 +208,6 @@
         <object>WorkPlan</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordLookups>
-    <recordLookups>
-        <name>Get_Matching_Work_Steps</name>
-        <label>Get Matching Work Steps</label>
-        <locationX>0</locationX>
-        <locationY>0</locationY>
-        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
-        <connector>
-            <targetReference>Were_Steps_Found</targetReference>
-        </connector>
-        <filterLogic>and</filterLogic>
-        <filters>
-            <field>WorkPlanId</field>
-            <operator>In</operator>
-            <value>
-                <elementReference>coll_WorkPlanIds</elementReference>
-            </value>
-        </filters>
-        <filters>
-            <field>Name</field>
-            <operator>EqualTo</operator>
-            <value>
-                <elementReference>$Record.WorkStepTemplate.Name</elementReference>
-            </value>
-        </filters>
-        <filters>
-            <field>ExecutionOrder</field>
-            <operator>EqualTo</operator>
-            <value>
-                <elementReference>$Record.ExecutionOrder</elementReference>
-            </value>
-        </filters>
-        <getFirstRecordOnly>false</getFirstRecordOnly>
-        <object>WorkStep</object>
-        <storeOutputAutomatically>true</storeOutputAutomatically>
-    </recordLookups>
     <start>
         <locationX>0</locationX>
         <locationY>0</locationY>
@@ -221,15 +215,40 @@
             <targetReference>Get_Active_Work_Plans</targetReference>
         </connector>
         <object>WorkPlanTemplateEntry</object>
-        <recordTriggerType>Delete</recordTriggerType>
-        <triggerType>RecordBeforeDelete</triggerType>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
     </start>
     <status>Active</status>
     <variables>
-        <name>coll_WorkPlanIds</name>
-        <dataType>String</dataType>
+        <name>apexInput</name>
+        <apexClass>WorkPlanEntryInput</apexClass>
+        <dataType>Apex</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>apexInputCollection</name>
+        <apexClass>WorkPlanEntryInput</apexClass>
+        <dataType>Apex</dataType>
         <isCollection>true</isCollection>
         <isInput>false</isInput>
         <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>coll_WorkStepsToCreate</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>WorkStep</objectType>
+    </variables>
+    <variables>
+        <name>var_SingleWorkStep</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>WorkStep</objectType>
     </variables>
 </Flow>
