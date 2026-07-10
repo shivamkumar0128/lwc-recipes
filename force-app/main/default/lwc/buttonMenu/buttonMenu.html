@@ -1,0 +1,38 @@
+<template>
+    <lightning-card title="Button Menu Component" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <lightning-button-menu alternative-text="Show menu items" label="Show menu items" 
+            onselect={handleSelect} icon-name="utility:down">
+                <lightning-menu-item label="Menu Item One" value="A0"></lightning-menu-item>
+                <lightning-menu-item label="Menu Item Two" value="B0"></lightning-menu-item>
+                <lightning-menu-item label="Menu Item Three" value="C0"></lightning-menu-item>
+            </lightning-button-menu>
+        </div>
+        <div class="slds-m-around_medium">
+            <lightning-button-menu alternative-text="Show menu items" label="Show menu items" 
+            onselect={handleSelect} icon-name="utility:up">
+                <lightning-menu-item label="Menu Item One" value="A0"></lightning-menu-item>
+                <lightning-menu-item label="Menu Item Two" value="B0"></lightning-menu-item>
+                <lightning-menu-item label="Menu Item Three" value="C0"></lightning-menu-item>
+            </lightning-button-menu>
+        </div>
+         <div class="slds-m-vertical_medium">
+            <p>The value of the menu item you selected is: <span class="slds-text-heading_small">{selectedItemValue}</span></p>
+        </div>
+    </lightning-card>
+    <lightning-card title="Button Menu Component" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <lightning-button-stateful 
+            label-when-off="Active"
+            label-when-on="Inactive"
+            label-when-hover="Deactivate"
+            icon-name-when-off="utility:check"
+            icon-name-when-on="utility:close"
+            icon-name-when-hover="utility:check"
+            alternative-text="Show menu items"
+            selected={selectedItemValues}
+            onclick={handleSelected}>
+            </lightning-button-stateful>
+        </div>
+    </lightning-card>
+</template>

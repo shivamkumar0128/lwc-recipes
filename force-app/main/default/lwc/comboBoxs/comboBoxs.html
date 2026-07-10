@@ -1,0 +1,17 @@
+<template>
+    <lightning-card title ="ComboBox" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <lightning-combobox
+                name="select"
+                label="Select a value"
+                value={value}
+                placeholder="Select an option"
+                options={options}
+                onchange={handleChange}>
+            </lightning-combobox>
+        </div>
+        <div class="slds-m-around_medium">
+            <p class="slds-text-heading_medium">Selected Value: {value}</p>
+        </div>
+</lightning-card>   
+</template>
