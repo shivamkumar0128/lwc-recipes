@@ -70,49 +70,25 @@
         </connector>
     </assignments>
     <decisions>
-        <name>Is_Work_Order_Open</name>
-        <label>Is Work Order Open</label>
+        <name>Check_if_Collection_is_Empty</name>
+        <label>Check if Collection is Empty</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
-        <defaultConnector>
-            <targetReference>Loop_Through_Work_Plans</targetReference>
-        </defaultConnector>
-        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <defaultConnectorLabel>Collection Empty</defaultConnectorLabel>
         <rules>
-            <name>Yes_Open</name>
+            <name>Has_Records_To_Create</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>Loop_Through_Work_Plans.WorkOrder.Status</leftValueReference>
-                <operator>NotEqualTo</operator>
+                <leftValueReference>coll_WorkStepsToCreate</leftValueReference>
+                <operator>IsNull</operator>
                 <rightValue>
-                    <stringValue>Completed</stringValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>Loop_Through_Work_Plans.WorkOrder.Status</leftValueReference>
-                <operator>NotEqualTo</operator>
-                <rightValue>
-                    <stringValue>Closed</stringValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>Loop_Through_Work_Plans.WorkOrder.Status</leftValueReference>
-                <operator>NotEqualTo</operator>
-                <rightValue>
-                    <stringValue>Cannot Complete</stringValue>
-                </rightValue>
-            </conditions>
-            <conditions>
-                <leftValueReference>Loop_Through_Work_Plans.WorkOrder.Status</leftValueReference>
-                <operator>NotEqualTo</operator>
-                <rightValue>
-                    <stringValue>Canceled</stringValue>
+                    <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Assign_Work_Step_Values</targetReference>
+                <targetReference>Create_New_Work_Steps</targetReference>
             </connector>
-            <label>Yes Open</label>
+            <label>Has Records To Create</label>
         </rules>
     </decisions>
     <decisions>
@@ -138,8 +114,8 @@
         </rules>
     </decisions>
     <environments>Default</environments>
-    <interviewLabel>workplan {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>workplan</label>
+    <interviewLabel>WorkPlan Step Creation {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>WorkPlan Step Creation</label>
     <loops>
         <name>Loop_Through_Work_Plans</name>
         <label>Loop Through Work Plans</label>
@@ -148,10 +124,10 @@
         <collectionReference>Get_Active_Work_Plans</collectionReference>
         <iterationOrder>Asc</iterationOrder>
         <nextValueConnector>
-            <targetReference>Is_Work_Order_Open</targetReference>
+            <targetReference>Assign_Work_Step_Values</targetReference>
         </nextValueConnector>
         <noMoreValuesConnector>
-            <targetReference>Create_New_Work_Steps</targetReference>
+            <targetReference>Check_if_Collection_is_Empty</targetReference>
         </noMoreValuesConnector>
     </loops>
     <processMetadataValues>
@@ -204,6 +180,34 @@
                 <booleanValue>false</booleanValue>
             </value>
         </filters>
+        <filters>
+            <field>WorkOrder.Status</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue>Completed</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>WorkOrder.Status</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue>Closed</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>WorkOrder.Status</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue>Cannot Complete</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>WorkOrder.Status</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue>Canceled</stringValue>
+            </value>
+        </filters>
         <getFirstRecordOnly>false</getFirstRecordOnly>
         <object>WorkPlan</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
@@ -219,22 +223,6 @@
         <triggerType>RecordAfterSave</triggerType>
     </start>
     <status>Active</status>
-    <variables>
-        <name>apexInput</name>
-        <apexClass>WorkPlanEntryInput</apexClass>
-        <dataType>Apex</dataType>
-        <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <name>apexInputCollection</name>
-        <apexClass>WorkPlanEntryInput</apexClass>
-        <dataType>Apex</dataType>
-        <isCollection>true</isCollection>
-        <isInput>false</isInput>
-        <isOutput>false</isOutput>
-    </variables>
     <variables>
         <name>coll_WorkStepsToCreate</name>
         <dataType>SObject</dataType>

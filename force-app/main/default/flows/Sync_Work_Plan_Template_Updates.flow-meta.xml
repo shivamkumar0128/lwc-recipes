@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <interviewLabel>Sync Work Plan Template Updates {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Sync Work Plan Template Updates</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+
+    <!-- 1. Immediate Record-Triggered Start Node -->
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <object>WorkPlanTemplateEntry</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+        <filterFormula>ISCHANGED({!$Record.ExecutionOrder})</filterFormula>
+        <connector>
+            <targetReference>Get_Affected_Work_Plans</targetReference>
+        </connector>
+    </start>
+
+    <!-- 2. Get Records: Isolated execution logic for WorkPlans -->
+    <recordLookups>
+        <name>Get_Affected_Work_Plans</name>
+        <label>Get Affected Work Plans</label>
+        <locationX>176</locationX>
+        <locationY>170</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Were_Work_Plans_Found</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>WorkPlanTemplateId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.WorkPlanTemplateId</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>WorkOrder.Status</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>New</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>WorkPlan</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <!-- 3. Decision Node -->
+    <decisions>
+        <name>Were_Work_Plans_Found</name>
+        <label>Were Work Plans Found?</label>
+        <locationX>176</locationX>
+        <locationY>290</locationY>
+        <defaultConnectorLabel>No</defaultConnectorLabel>
+        <rules>
+            <name>Yes_Found</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Affected_Work_Plans</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Loop_Through_Work_Plans</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+
+    <!-- 4. Loop Engine using the proper nextValueConnector element -->
+    <loops>
+        <name>Loop_Through_Work_Plans</name>
+        <label>Loop Through Work Plans</label>
+        <locationX>50</locationX>
+        <locationY>410</locationY>
+        <collectionReference>Get_Affected_Work_Plans</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Update_Child_Work_Steps</targetReference>
+        </nextValueConnector>
+    </loops>
+
+    <!-- 5. Re-aligned Update Step strictly targeting Parent Plan and Template Match -->
+    <recordUpdates>
+        <name>Update_Child_Work_Steps</name>
+        <label>Update Child Work Steps</label>
+        <locationX>138</locationX>
+        <locationY>530</locationY>
+        <connector>
+            <targetReference>Loop_Through_Work_Plans</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>WorkPlanId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>Loop_Through_Work_Plans.Id</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>WorkStepTemplateId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.WorkStepTemplateId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>ExecutionOrder</field>
+            <value>
+                <elementReference>$Record.ExecutionOrder</elementReference>
+            </value>
+        </inputAssignments>
+        <object>WorkStep</object>
+    </recordUpdates>
+</Flow>
